@@ -1,0 +1,48 @@
+<html>
+    <head>
+        <script src="js/jquery-1.11.0.js" type="text/javascript"></script>
+    </head>
+    <body>    
+        <script type="text/javascript">
+            var query = `SELECT ?obs ?componentProperty ?obsValue FROM <http://labs.turnguard.com/scuba> WHERE {
+                    ?obs a qb:Observation;
+                         qb:dataSet/qb:structure/qb:component/qb:componentProperty ?componentProperty .
+                    ?obs ?componentProperty ?obsValue
+            }  ORDER BY ?obs ?componentProperty`;
+
+            $(function() {
+                $.ajax({
+                    'async': false,
+                    'global': false,
+                    'url': 'http://sparql.turnguard.com/sparql?query='+encodeURIComponent(query),
+                    'dataType': "json",
+                    'success': function (data) {
+                        var minimums = data.results.bindings.map(
+                            binding => { 
+                                    switch(binding.obsValue.datatype){
+                                        case "http://www.w3.org/2001/XMLSchema#integer":
+                                            obsValue = parseInt(binding.obsValue.value);
+                                        break;
+                                        case "http://www.w3.org/2001/XMLSchema#double":
+                                            obsValue = parseFloat(binding.obsValue.value);
+                                        break;
+                                        case "http://www.w3.org/2001/XMLSchema#dateTime":
+                                            obsValue = Date.parse(binding.obsValue.value);
+                                        break;
+                                    }
+                                    return { [binding.componentProperty.value]:obsValue }                                 
+                            }
+                        ).reduce( (a,b) => {
+                            var componentProperty = Object.keys(b)[0];
+                            if(a[componentProperty]===undefined || b[componentProperty]<a[componentProperty]){
+                                a[componentProperty] = b[componentProperty];
+                            } 
+                            return a;
+                        },{});
+                        console.log(minimums);
+                    }
+                });
+            });
+        </script>
+    </body>
+</html>
